@@ -1,0 +1,60 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+#@ load("@ytt:yaml", "yaml")
+
+#@overlay/match by=overlay.subset({"kind":"VSphereMachineTemplate"}),expects=2
+---
+spec:
+  template:
+    spec:
+      datacenter: #@ data.values.datacenter
+      datastore: #@ data.values.datastore
+      folder: #@ data.values.folder
+      resourcePool: #@ data.values.resourcePool
+      server: #@ data.values.vcenter
+      template: #@ data.values.template
+      network:
+        devices:
+        #@overlay/match by=overlay.all, expects="1+"
+        -
+          networkName: #@ data.values.networkName
+
+#@ def vsphere_cpi_conf_values():
+vsphereCPI:
+  server: #@ data.values.vcenter
+  datacenter: #@ data.values.datacenter
+#@ end
+
+#@ def update_vsphere_cpi_conf(old, _):
+#@   header = "#@data/values\n#@overlay/match-child-defaults missing_ok=True\n---\n"
+#@   return header+yaml.encode(overlay.apply(yaml.decode(old.split("---")[1]), vsphere_cpi_conf_values()))
+#@ end
+
+#@overlay/match by=overlay.subset({"kind":"Secret", "metadata": {"name": data.values.tkgClusterName+"-vsphere-cpi-addon"}})
+---
+stringData:
+  #@overlay/replace via=update_vsphere_cpi_conf
+  values.yaml:
+
+#@ def vsphere_csi_conf_values():
+vsphereCSI:
+  server: #@ data.values.vcenter
+  datacenter: #@ data.values.datacenter
+  publicNetwork: #@ data.values.networkName
+#@ end
+
+#@ def update_vsphere_csi_conf(old, _):
+#@   header = "#@data/values\n#@overlay/match-child-defaults missing_ok=True\n---\n"
+#@   return header+yaml.encode(overlay.apply(yaml.decode(old.split("---")[1]), vsphere_csi_conf_values()))
+#@ end
+
+#@overlay/match by=overlay.subset({"kind":"Secret", "metadata": {"name": data.values.tkgClusterName+"-vsphere-csi-addon"}})
+---
+stringData:
+  #@overlay/replace via=update_vsphere_csi_conf
+  values.yaml:
+
+#@overlay/match by=overlay.subset({"kind":"VSphereCluster", "metadata": {"name": data.values.tkgClusterName}})
+---
+spec:
+  server: #@ data.values.vcenter

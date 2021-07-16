@@ -1,0 +1,1056 @@
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: Cluster
+metadata:
+  annotations:
+    osInfo: photon,3,amd64
+    tkg/plan: prod
+  labels:
+    tanzuKubernetesRelease: v1.20.5---vmware.2-tkg.1
+    tkg.tanzu.vmware.com/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01
+  namespace: default
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 100.96.0.0/11
+    services:
+      cidrBlocks:
+      - 100.64.0.0/13
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+    kind: KubeadmControlPlane
+    name: tkg-cluster-01-control-plane
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: VSphereCluster
+    name: tkg-cluster-01
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: VSphereCluster
+metadata:
+  name: tkg-cluster-01
+  namespace: default
+spec:
+  controlPlaneEndpoint:
+    host: 192.168.1.92
+    port: 6443
+  server: vcsa.vmware.corp
+  thumbprint: ""
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: VSphereMachineTemplate
+metadata:
+  name: tkg-cluster-01-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      cloneMode: fullClone
+      datacenter: /Palo-Alto
+      datastore: /Palo-Alto/datastore/vsanDatastore
+      diskGiB: 20
+      folder: /Palo-Alto/vm/TKG
+      memoryMiB: 8192
+      network:
+        devices:
+        - dhcp4: true
+          networkName: VM Network
+      numCPUs: 4
+      resourcePool: /Palo-Alto/host/Cluster-01
+      server: vcsa.vmware.corp
+      storagePolicyName: ""
+      template: /Palo-Alto/vm/TKG/photon-3-kube-v1.20.5_vmware.2
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+kind: VSphereMachineTemplate
+metadata:
+  name: tkg-cluster-01-worker
+  namespace: default
+spec:
+  template:
+    spec:
+      cloneMode: fullClone
+      datacenter: /Palo-Alto
+      datastore: /Palo-Alto/datastore/vsanDatastore
+      diskGiB: 20
+      folder: /Palo-Alto/vm/TKG
+      memoryMiB: 8192
+      network:
+        devices:
+        - dhcp4: true
+          networkName: VM Network
+      numCPUs: 4
+      resourcePool: /Palo-Alto/host/Cluster-01
+      server: vcsa.vmware.corp
+      storagePolicyName: ""
+      template: /Palo-Alto/vm/TKG/photon-3-kube-v1.20.5_vmware.2
+---
+apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
+kind: KubeadmControlPlane
+metadata:
+  name: tkg-cluster-01-control-plane
+  namespace: default
+spec:
+  infrastructureTemplate:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: VSphereMachineTemplate
+    name: tkg-cluster-01-control-plane
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          audit-log-maxage: "30"
+          audit-log-maxbackup: "10"
+          audit-log-maxsize: "100"
+          audit-log-path: /var/log/kubernetes/audit.log
+          audit-policy-file: /etc/kubernetes/audit-policy.yaml
+          cloud-provider: external
+          tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        extraVolumes:
+        - hostPath: /etc/kubernetes/audit-policy.yaml
+          mountPath: /etc/kubernetes/audit-policy.yaml
+          name: audit-policy
+        - hostPath: /var/log/kubernetes
+          mountPath: /var/log/kubernetes
+          name: audit-logs
+        timeoutForControlPlane: 8m0s
+      controllerManager:
+        extraArgs:
+          cloud-provider: external
+          tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+      dns:
+        imageRepository: registry.rainpole.io/library
+        imageTag: v1.7.0_vmware.8
+        type: CoreDNS
+      etcd:
+        local:
+          dataDir: /var/lib/etcd
+          extraArgs:
+            cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+          imageRepository: registry.rainpole.io/library
+          imageTag: v3.4.13_vmware.7
+      imageRepository: registry.rainpole.io/library
+      scheduler:
+        extraArgs:
+          tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    files:
+    - content: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          creationTimestamp: null
+          name: kube-vip
+          namespace: kube-system
+        spec:
+          containers:
+          - args:
+            - start
+            env:
+            - name: vip_arp
+              value: "true"
+            - name: vip_leaderelection
+              value: "true"
+            - name: address
+              value: 192.168.1.92
+            - name: vip_interface
+              value: eth0
+            - name: vip_leaseduration
+              value: "30"
+            - name: vip_renewdeadline
+              value: "20"
+            - name: vip_retryperiod
+              value: "4"
+            image: registry.rainpole.io/library/kube-vip:v0.3.3_vmware.1
+            imagePullPolicy: IfNotPresent
+            name: kube-vip
+            resources: {}
+            securityContext:
+              capabilities:
+                add:
+                - NET_ADMIN
+                - SYS_TIME
+            volumeMounts:
+            - mountPath: /etc/kubernetes/admin.conf
+              name: kubeconfig
+          hostNetwork: true
+          volumes:
+          - hostPath:
+              path: /etc/kubernetes/admin.conf
+              type: FileOrCreate
+            name: kubeconfig
+        status: {}
+      owner: root:root
+      path: /etc/kubernetes/manifests/kube-vip.yaml
+    - content: YXBpVmVyc2lvbjogYXVkaXQuazhzLmlvL3YxYmV0YTEKa2luZDogUG9saWN5CnJ1bGVzOgotIGxldmVsOiBOb25lCiAgdXNlcnM6CiAgLSBzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZS1zeXN0ZW06a3ViZS1wcm94eQogIHZlcmJzOgogIC0gd2F0Y2gKICByZXNvdXJjZXM6CiAgLSBncm91cDogIiIKICAgIHJlc291cmNlczoKICAgIC0gZW5kcG9pbnRzCiAgICAtIHNlcnZpY2VzCiAgICAtIHNlcnZpY2VzL3N0YXR1cwotIGxldmVsOiBOb25lCiAgdXNlckdyb3VwczoKICAtIHN5c3RlbTpub2RlcwogIHZlcmJzOgogIC0gZ2V0CiAgcmVzb3VyY2VzOgogIC0gZ3JvdXA6ICIiCiAgICByZXNvdXJjZXM6CiAgICAtIG5vZGVzCiAgICAtIG5vZGVzL3N0YXR1cwotIGxldmVsOiBOb25lCiAgdXNlcnM6CiAgLSBzeXN0ZW06a3ViZS1jb250cm9sbGVyLW1hbmFnZXIKICAtIHN5c3RlbTprdWJlLXNjaGVkdWxlcgogIC0gc3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmVuZHBvaW50LWNvbnRyb2xsZXIKICB2ZXJiczoKICAtIGdldAogIC0gdXBkYXRlCiAgbmFtZXNwYWNlczoKICAtIGt1YmUtc3lzdGVtCiAgcmVzb3VyY2VzOgogIC0gZ3JvdXA6ICIiCiAgICByZXNvdXJjZXM6CiAgICAtIGVuZHBvaW50cwotIGxldmVsOiBOb25lCiAgdXNlcnM6CiAgLSBzeXN0ZW06YXBpc2VydmVyCiAgdmVyYnM6CiAgLSBnZXQKICByZXNvdXJjZXM6CiAgLSBncm91cDogIiIKICAgIHJlc291cmNlczoKICAgIC0gbmFtZXNwYWNlcwogICAgLSBuYW1lc3BhY2VzL3N0YXR1cwogICAgLSBuYW1lc3BhY2VzL2ZpbmFsaXplCi0gbGV2ZWw6IE5vbmUKICB1c2VyczoKICAtIHN5c3RlbTprdWJlLWNvbnRyb2xsZXItbWFuYWdlcgogIHZlcmJzOgogIC0gZ2V0CiAgLSBsaXN0CiAgcmVzb3VyY2VzOgogIC0gZ3JvdXA6IG1ldHJpY3MuazhzLmlvCi0gbGV2ZWw6IE5vbmUKICBub25SZXNvdXJjZVVSTHM6CiAgLSAvaGVhbHRoeioKICAtIC92ZXJzaW9uCiAgLSAvc3dhZ2dlcioKLSBsZXZlbDogTm9uZQogIHJlc291cmNlczoKICAtIGdyb3VwOiAiIgogICAgcmVzb3VyY2VzOgogICAgLSBldmVudHMKLSBsZXZlbDogTm9uZQogIHVzZXJHcm91cHM6CiAgLSBzeXN0ZW06c2VydmljZWFjY291bnRzOnZtd2FyZS1zeXN0ZW0tdG1jCiAgdmVyYnM6CiAgLSBnZXQKICAtIGxpc3QKICAtIHdhdGNoCi0gbGV2ZWw6IE5vbmUKICB1c2VyczoKICAtIHN5c3RlbTpzZXJ2aWNlYWNjb3VudDprdWJlLXN5c3RlbTpnZW5lcmljLWdhcmJhZ2UtY29sbGVjdG9yCiAgdmVyYnM6CiAgLSBnZXQKICAtIGxpc3QKICAtIHdhdGNoCi0gbGV2ZWw6IFJlcXVlc3QKICB1c2VyR3JvdXBzOgogIC0gc3lzdGVtOm5vZGVzCiAgdmVyYnM6CiAgLSB1cGRhdGUKICAtIHBhdGNoCiAgcmVzb3VyY2VzOgogIC0gZ3JvdXA6ICIiCiAgICByZXNvdXJjZXM6CiAgICAtIG5vZGVzL3N0YXR1cwogICAgLSBwb2RzL3N0YXR1cwogIG9taXRTdGFnZXM6CiAgLSBSZXF1ZXN0UmVjZWl2ZWQKLSBsZXZlbDogUmVxdWVzdAogIHVzZXJzOgogIC0gc3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOm5hbWVzcGFjZS1jb250cm9sbGVyCiAgdmVyYnM6CiAgLSBkZWxldGVjb2xsZWN0aW9uCiAgb21pdFN0YWdlczoKICAtIFJlcXVlc3RSZWNlaXZlZAotIGxldmVsOiBNZXRhZGF0YQogIHJlc291cmNlczoKICAtIGdyb3VwOiAiIgogICAgcmVzb3VyY2VzOgogICAgLSBzZWNyZXRzCiAgICAtIGNvbmZpZ21hcHMKICAtIGdyb3VwOiBhdXRoZW50aWNhdGlvbi5rOHMuaW8KICAgIHJlc291cmNlczoKICAgIC0gdG9rZW5yZXZpZXdzCiAgb21pdFN0YWdlczoKICAtIFJlcXVlc3RSZWNlaXZlZAotIGxldmVsOiBSZXF1ZXN0CiAgdmVyYnM6CiAgLSBnZXQKICAtIGxpc3QKICAtIHdhdGNoCiAgcmVzb3VyY2VzOgogIC0gZ3JvdXA6ICIiCiAgLSBncm91cDogYWRtaXNzaW9ucmVnaXN0cmF0aW9uLms4cy5pbwogIC0gZ3JvdXA6IGFwaWV4dGVuc2lvbnMuazhzLmlvCiAgLSBncm91cDogYXBpcmVnaXN0cmF0aW9uLms4cy5pbwogIC0gZ3JvdXA6IGFwcHMKICAtIGdyb3VwOiBhdXRoZW50aWNhdGlvbi5rOHMuaW8KICAtIGdyb3VwOiBhdXRob3JpemF0aW9uLms4cy5pbwogIC0gZ3JvdXA6IGF1dG9zY2FsaW5nCiAgLSBncm91cDogYmF0Y2gKICAtIGdyb3VwOiBjZXJ0aWZpY2F0ZXMuazhzLmlvCiAgLSBncm91cDogZXh0ZW5zaW9ucwogIC0gZ3JvdXA6IG1ldHJpY3MuazhzLmlvCiAgLSBncm91cDogbmV0d29ya2luZy5rOHMuaW8KICAtIGdyb3VwOiBwb2xpY3kKICAtIGdyb3VwOiByYmFjLmF1dGhvcml6YXRpb24uazhzLmlvCiAgLSBncm91cDogc2V0dGluZ3MuazhzLmlvCiAgLSBncm91cDogc3RvcmFnZS5rOHMuaW8KICBvbWl0U3RhZ2VzOgogIC0gUmVxdWVzdFJlY2VpdmVkCi0gbGV2ZWw6IFJlcXVlc3RSZXNwb25zZQogIHJlc291cmNlczoKICAtIGdyb3VwOiAiIgogIC0gZ3JvdXA6IGFkbWlzc2lvbnJlZ2lzdHJhdGlvbi5rOHMuaW8KICAtIGdyb3VwOiBhcGlleHRlbnNpb25zLms4cy5pbwogIC0gZ3JvdXA6IGFwaXJlZ2lzdHJhdGlvbi5rOHMuaW8KICAtIGdyb3VwOiBhcHBzCiAgLSBncm91cDogYXV0aGVudGljYXRpb24uazhzLmlvCiAgLSBncm91cDogYXV0aG9yaXphdGlvbi5rOHMuaW8KICAtIGdyb3VwOiBhdXRvc2NhbGluZwogIC0gZ3JvdXA6IGJhdGNoCiAgLSBncm91cDogY2VydGlmaWNhdGVzLms4cy5pbwogIC0gZ3JvdXA6IGV4dGVuc2lvbnMKICAtIGdyb3VwOiBtZXRyaWNzLms4cy5pbwogIC0gZ3JvdXA6IG5ldHdvcmtpbmcuazhzLmlvCiAgLSBncm91cDogcG9saWN5CiAgLSBncm91cDogcmJhYy5hdXRob3JpemF0aW9uLms4cy5pbwogIC0gZ3JvdXA6IHNldHRpbmdzLms4cy5pbwogIC0gZ3JvdXA6IHN0b3JhZ2UuazhzLmlvCiAgb21pdFN0YWdlczoKICAtIFJlcXVlc3RSZWNlaXZlZAotIGxldmVsOiBNZXRhZGF0YQogIG9taXRTdGFnZXM6CiAgLSBSZXF1ZXN0UmVjZWl2ZWQK
+      encoding: base64
+      owner: root:root
+      path: /etc/kubernetes/audit-policy.yaml
+      permissions: "0600"
+    initConfiguration:
+      nodeRegistration:
+        criSocket: /var/run/containerd/containerd.sock
+        kubeletExtraArgs:
+          cloud-provider: external
+          tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        name: '{{ ds.meta_data.hostname }}'
+    joinConfiguration:
+      nodeRegistration:
+        criSocket: /var/run/containerd/containerd.sock
+        kubeletExtraArgs:
+          cloud-provider: external
+          tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        name: '{{ ds.meta_data.hostname }}'
+    preKubeadmCommands:
+    - hostname "{{ ds.meta_data.hostname }}"
+    - echo "::1         ipv6-localhost ipv6-loopback" >/etc/hosts
+    - echo "127.0.0.1   localhost" >>/etc/hosts
+    - echo "127.0.0.1   {{ ds.meta_data.hostname }}" >>/etc/hosts
+    - echo "{{ ds.meta_data.hostname }}" >/etc/hostname
+    - sed -i 's|".*/pause|"registry.rainpole.io/library/pause|' /etc/containerd/config.toml
+    - systemctl restart containerd
+    useExperimentalRetryJoin: true
+    users:
+    - name: capv
+      sshAuthorizedKeys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDBWW4W55/CHTK84B6LaR8BjlW2dQE1KoEuo+AghNQwF5ePudmylts82/zdk3+qVBoGF/CMsPxO7XxjYzlZ28Hr+cyN7TDJKCFtmKZKQkKTR/Pw3FE6gOnxSCmuWN/NfFtjbQmoqv9/lk1SyvGt8+u4quvJsZuVOmETbL06bzVbaBwtAMXkuo6J5BpKss3vtTZr8KQk0HHekwXDPQrLlGPkOP4TJ+J6t7X0ni9zo4U+yCqgU0teDTf2nUmDwStmyr0Ym83LQ1SQlTEqgkEWaOgKSWfZjhTOc5FX6spEd3QLi/oKenoGDt40aXkm0g8FqTkETpo1ETKMO2x5QhuM/U1n
+      sudo: ALL=(ALL) NOPASSWD:ALL
+  replicas: 3
+  version: v1.20.5+vmware.2
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+kind: KubeadmConfigTemplate
+metadata:
+  name: tkg-cluster-01-md-0
+  namespace: default
+spec:
+  template:
+    spec:
+      files: []
+      joinConfiguration:
+        nodeRegistration:
+          criSocket: /var/run/containerd/containerd.sock
+          kubeletExtraArgs:
+            cloud-provider: external
+            tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+          name: '{{ ds.meta_data.hostname }}'
+      preKubeadmCommands:
+      - hostname "{{ ds.meta_data.hostname }}"
+      - echo "::1         ipv6-localhost ipv6-loopback" >/etc/hosts
+      - echo "127.0.0.1   localhost" >>/etc/hosts
+      - echo "127.0.0.1   {{ ds.meta_data.hostname }}" >>/etc/hosts
+      - echo "{{ ds.meta_data.hostname }}" >/etc/hostname
+      - sed -i 's|".*/pause|"registry.rainpole.io/library/pause|' /etc/containerd/config.toml
+      - systemctl restart containerd
+      useExperimentalRetryJoin: true
+      users:
+      - name: capv
+        sshAuthorizedKeys:
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDBWW4W55/CHTK84B6LaR8BjlW2dQE1KoEuo+AghNQwF5ePudmylts82/zdk3+qVBoGF/CMsPxO7XxjYzlZ28Hr+cyN7TDJKCFtmKZKQkKTR/Pw3FE6gOnxSCmuWN/NfFtjbQmoqv9/lk1SyvGt8+u4quvJsZuVOmETbL06bzVbaBwtAMXkuo6J5BpKss3vtTZr8KQk0HHekwXDPQrLlGPkOP4TJ+J6t7X0ni9zo4U+yCqgU0teDTf2nUmDwStmyr0Ym83LQ1SQlTEqgkEWaOgKSWfZjhTOc5FX6spEd3QLi/oKenoGDt40aXkm0g8FqTkETpo1ETKMO2x5QhuM/U1n
+        sudo: ALL=(ALL) NOPASSWD:ALL
+---
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: MachineDeployment
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01-md-0
+  namespace: default
+spec:
+  clusterName: tkg-cluster-01
+  replicas: 3
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/cluster-name: tkg-cluster-01
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: tkg-cluster-01
+        node-pool: tkg-cluster-01-worker-pool
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+          kind: KubeadmConfigTemplate
+          name: tkg-cluster-01-md-0
+      clusterName: tkg-cluster-01
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+        kind: VSphereMachineTemplate
+        name: tkg-cluster-01-worker
+      version: v1.20.5+vmware.2
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: cni/antrea
+  labels:
+    clusterctl.cluster.x-k8s.io/move: ""
+    tkg.tanzu.vmware.com/addon-name: antrea
+    tkg.tanzu.vmware.com/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01-antrea-addon
+  namespace: default
+stringData:
+  values.yaml: |
+    #@data/values
+    #@overlay/match-child-defaults missing_ok=True
+    ---
+    infraProvider: vsphere
+    antrea:
+      config:
+        serviceCIDR: 100.64.0.0/13
+        trafficEncapMode: encap
+        noSNAT: false
+        featureGates:
+          AntreaProxy: false
+          AntreaPolicy: true
+          AntreaTraceflow: false
+      image:
+        repository: registry.rainpole.io/library
+        path: antrea/antrea-debian
+        tag: v0.11.3_vmware.2
+        pullPolicy: IfNotPresent
+type: tkg.tanzu.vmware.com/addon
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: cloud-provider/vsphere-cpi
+  labels:
+    tkg.tanzu.vmware.com/addon-name: vsphere-cpi
+    tkg.tanzu.vmware.com/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01-vsphere-cpi-addon
+  namespace: default
+stringData:
+  values.yaml: |
+    #@data/values
+    #@overlay/match-child-defaults missing_ok=True
+    ---
+    vsphereCPI:
+      tlsThumbprint: ""
+      server: vcsa.vmware.corp
+      datacenter: /Palo-Alto
+      username: tkg@vmware.corp
+      password: VMware1!
+      insecureFlag: true
+      image:
+        repository: registry.rainpole.io/library
+        path: ccm/manager
+        tag: v1.18.1_vmware.1
+        pullPolicy: IfNotPresent
+      cloudProviderExtraArgs:
+        tls-cipher-suites: TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+      nsxt:
+        podRoutingEnabled: false
+        routes:
+          routerPath: ""
+          clusterCidr: 100.96.0.0/11
+        username: ""
+        password: ""
+        host: ""
+        insecureFlag: "false"
+        remoteAuth: "false"
+        vmcAccessToken: ""
+        vmcAuthHost: ""
+        clientCertKeyData: ""
+        clientCertData: ""
+        rootCAData: ""
+        secretName: cloud-provider-vsphere-nsxt-credentials
+        secretNamespace: kube-system
+type: tkg.tanzu.vmware.com/addon
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: csi/vsphere-csi
+  labels:
+    tkg.tanzu.vmware.com/addon-name: vsphere-csi
+    tkg.tanzu.vmware.com/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01-vsphere-csi-addon
+  namespace: default
+stringData:
+  values.yaml: |
+    #@data/values
+    #@overlay/match-child-defaults missing_ok=True
+    ---
+    vsphereCSI:
+      CSIAttacherImage:
+        repository: registry.rainpole.io/library
+        path: csi/csi-attacher
+        tag: v3.0.0_vmware.1
+        pullPolicy: IfNotPresent
+      vsphereCSIControllerImage:
+        repository: registry.rainpole.io/library
+        path: csi/vsphere-block-csi-driver
+        tag: v2.1.0_vmware.1
+        pullPolicy: IfNotPresent
+      livenessProbeImage:
+        repository: registry.rainpole.io/library
+        path: csi/csi-livenessprobe
+        tag: v2.1.0_vmware.1
+        pullPolicy: IfNotPresent
+      vsphereSyncerImage:
+        repository: registry.rainpole.io/library
+        path: csi/volume-metadata-syncer
+        tag: v2.1.0_vmware.1
+        pullPolicy: IfNotPresent
+      CSIProvisionerImage:
+        repository: registry.rainpole.io/library
+        path: csi/csi-provisioner
+        tag: v2.0.0_vmware.1
+        pullPolicy: IfNotPresent
+      CSINodeDriverRegistrarImage:
+        repository: registry.rainpole.io/library
+        path: csi/csi-node-driver-registrar
+        tag: v2.0.1_vmware.1
+        pullPolicy: IfNotPresent
+      namespace: kube-system
+      clusterName: tkg-cluster-01
+      server: vcsa.vmware.corp
+      datacenter: /Palo-Alto
+      publicNetwork: VM Network
+      username: tkg@vmware.corp
+      password: VMware1!
+      vSphereVersion: 7.0.2
+type: tkg.tanzu.vmware.com/addon
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: addons-management/kapp-controller
+    tkg.tanzu.vmware.com/remote-app: "true"
+  labels:
+    clusterctl.cluster.x-k8s.io/move: ""
+    tkg.tanzu.vmware.com/addon-name: kapp-controller
+    tkg.tanzu.vmware.com/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01-kapp-controller-addon
+  namespace: default
+stringData:
+  values.yaml: |
+    #@data/values
+    #@overlay/match-child-defaults missing_ok=True
+    ---
+    kappController:
+      namespace: tkg-system
+      createNamespace: true
+      image:
+        repository: registry.rainpole.io/library
+        path: kapp-controller
+        tag: v0.18.0_vmware.1
+        pullPolicy: IfNotPresent
+      deployment:
+        hostNetwork: true
+        priorityClassName: system-cluster-critical
+        tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+        - effect: NoSchedule
+          key: node.kubernetes.io/not-ready
+        - effect: NoSchedule
+          key: node.cloudprovider.kubernetes.io/uninitialized
+          value: "true"
+      config: {}
+type: tkg.tanzu.vmware.com/addon
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: metadata/tkg
+  name: tkg-cluster-01-tkg-metadata-namespace-role
+  namespace: default
+stringData:
+  value: |
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: tkg-system-public
+      annotations:
+        tkg.tanzu.vmware.com/addon-type: metadata/tkg
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: tkg-metadata-reader
+      namespace: tkg-system-public
+      annotations:
+        tkg.tanzu.vmware.com/addon-type: metadata/tkg
+    rules:
+    - apiGroups:
+      - ""
+      resourceNames:
+      - tkg-metadata
+      - tkg-bom
+      resources:
+      - configmaps
+      verbs:
+      - get
+      - list
+      - watch
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: tkg-metadata-reader
+      namespace: tkg-system-public
+      annotations:
+        tkg.tanzu.vmware.com/addon-type: metadata/tkg
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: tkg-metadata-reader
+    subjects:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: Group
+      name: system:authenticated
+type: addons.cluster.x-k8s.io/resource-set
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: metadata/tkg
+  name: tkg-cluster-01-tkg-metadata-configmap
+  namespace: default
+stringData:
+  value: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: tkg-metadata
+      namespace: tkg-system-public
+      annotations:
+        tkg.tanzu.vmware.com/addon-type: metadata/tkg
+    data:
+      metadata.yaml: |
+        cluster:
+          name: tkg-cluster-01
+          type: workload
+          plan: prod
+          kubernetesProvider: VMware Tanzu Kubernetes Grid
+          tkgVersion: v1.3.1-patch1
+          infrastructure:
+            provider: vsphere
+        bom:
+          configmapRef:
+            name: tkg-bom
+type: addons.cluster.x-k8s.io/resource-set
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: metadata/tkg
+  name: tkg-cluster-01-tkg-metadata-bom-configmap
+  namespace: default
+stringData:
+  value: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: tkg-bom
+      namespace: tkg-system-public
+      annotations:
+        tkg.tanzu.vmware.com/addon-type: metadata/tkg
+    data:
+      bom.yaml: |
+        apiVersion: run.tanzu.vmware.com/v1alpha1
+        default:
+          k8sVersion: v1.20.5+vmware.2-tkg.1
+        release:
+          version: v1.3.1-patch1
+        components:
+          aad-pod-identity:
+          - version: v1.6.3+vmware.1
+            images:
+              micImage:
+                imagePath: cluster-api/mic
+                tag: v1.6.3_vmware.1
+              nmiImage:
+                imagePath: cluster-api/nmi
+                tag: v1.6.3_vmware.1
+          ako-operator:
+          - version: v1.3.1+vmware.1
+            images:
+              akoOperatorImage:
+                imagePath: ako-operator
+                tag: v1.3.1_vmware.1
+          alertmanager:
+          - version: v0.20.0+vmware.1
+            images:
+              alertmanagerImage:
+                imagePath: prometheus/alertmanager
+                tag: v0.20.0_vmware.1
+          cadvisor:
+          - version: v0.36.0+vmware.1
+            images:
+              cadvisorImage:
+                imagePath: prometheus/cadvisor
+                tag: v0.36.0_vmware.1
+          cloud-provider-azure:
+          - version: v0.5.1+vmware.2
+            images:
+              ccmAzureControllerImage:
+                imagePath: azure-cloud-controller-manager
+                tag: v0.5.1_vmware.2
+              ccmAzureNodeImage:
+                imagePath: azure-cloud-node-manager
+                tag: v0.5.1_vmware.2
+          cluster-api-provider-azure:
+          - version: v0.4.10+vmware.2
+            images:
+              capzControllerImage:
+                imagePath: cluster-api/cluster-api-azure-controller
+                tag: v0.4.10_vmware.2
+          cluster_api:
+          - version: v0.3.14+vmware.2
+            images:
+              cabpkControllerImage:
+                imagePath: cluster-api/kubeadm-bootstrap-controller
+                tag: v0.3.14_vmware.2
+              capdManagerImage:
+                imagePath: cluster-api/capd-manager
+                tag: v0.3.14_vmware.2
+              capiControllerImage:
+                imagePath: cluster-api/cluster-api-controller
+                tag: v0.3.14_vmware.2
+              kcpControllerImage:
+                imagePath: cluster-api/kubeadm-control-plane-controller
+                tag: v0.3.14_vmware.2
+          cluster_api_aws:
+          - version: v0.6.4+vmware.1
+            images:
+              capaControllerImage:
+                imagePath: cluster-api/cluster-api-aws-controller
+                tag: v0.6.4_vmware.1
+          cluster_api_vsphere:
+          - version: v0.7.7+vmware.1
+            images:
+              capvControllerImage:
+                imagePath: cluster-api/cluster-api-vsphere-controller
+                tag: v0.7.7_vmware.1
+          configmap-reload:
+          - version: v0.3.0+vmware.1
+            images:
+              configmapReloadImage:
+                imagePath: prometheus/configmap-reload
+                tag: v0.3.0_vmware.1
+          contour:
+          - version: v1.12.0+vmware.1
+            images:
+              contourImage:
+                imagePath: contour
+                tag: v1.12.0_vmware.1
+          crash-diagnostics:
+          - version: v0.3.2+vmware.3
+          envoy:
+          - version: v1.17.3+vmware.1
+            images:
+              envoyImage:
+                imagePath: envoy
+                tag: v1.17.3_vmware.1
+          external-dns:
+          - version: v0.7.4+vmware.1
+            images:
+              externalDNSImage:
+                imagePath: external-dns
+                tag: v0.7.4_vmware.1
+          fluent-bit:
+          - version: v1.6.9+vmware.1
+            images:
+              fluentBitImage:
+                imagePath: fluent-bit
+                tag: v1.6.9_vmware.1
+          gangway:
+          - version: v3.2.0+vmware.2
+            images:
+              gangwayImage:
+                imagePath: gangway
+                tag: v3.2.0_vmware.2
+          grafana:
+          - version: v7.3.5+vmware.2
+            images:
+              grafanaImage:
+                imagePath: grafana/grafana
+                tag: v7.3.5_vmware.2
+          harbor:
+          - version: v2.1.3+vmware.1
+            images:
+              harborChartMuseumImage:
+                imagePath: harbor/chartmuseum-photon
+                tag: v2.1.3_vmware.1
+              harborClairAdapterImage:
+                imagePath: harbor/clair-adapter-photon
+                tag: v2.1.3_vmware.1
+              harborClairImage:
+                imagePath: harbor/clair-photon
+                tag: v2.1.3_vmware.1
+              harborCoreImage:
+                imagePath: harbor/harbor-core
+                tag: v2.1.3_vmware.1
+              harborDatabaseImage:
+                imagePath: harbor/harbor-db
+                tag: v2.1.3_vmware.1
+              harborJobServiceImage:
+                imagePath: harbor/harbor-jobservice
+                tag: v2.1.3_vmware.1
+              harborLogImage:
+                imagePath: harbor/harbor-log
+                tag: v2.1.3_vmware.1
+              harborNginxImage:
+                imagePath: harbor/nginx-photon
+                tag: v2.1.3_vmware.1
+              harborNotaryServerImage:
+                imagePath: harbor/notary-server-photon
+                tag: v2.1.3_vmware.1
+              harborNotarySignerImage:
+                imagePath: harbor/notary-signer-photon
+                tag: v2.1.3_vmware.1
+              harborPortalImage:
+                imagePath: harbor/harbor-portal
+                tag: v2.1.3_vmware.1
+              harborPrepareImage:
+                imagePath: harbor/prepare
+                tag: v2.1.3_vmware.1
+              harborRedisImage:
+                imagePath: harbor/redis-photon
+                tag: v2.1.3_vmware.1
+              harborRegistryCtlImage:
+                imagePath: harbor/harbor-registryctl
+                tag: v2.1.3_vmware.1
+              harborRegistryImage:
+                imagePath: harbor/registry-photon
+                tag: v2.1.3_vmware.1
+              harborTrivyAdapterImage:
+                imagePath: harbor/trivy-adapter-photon
+                tag: v2.1.3_vmware.1
+          imgpkg:
+          - version: v0.5.0+vmware.1
+          jetstack_cert-manager:
+          - version: v0.16.1+vmware.1
+            images:
+              certMgrControllerImage:
+                imagePath: cert-manager-controller
+                tag: v0.16.1_vmware.1
+              certMgrInjectorImage:
+                imagePath: cert-manager-cainjector
+                tag: v0.16.1_vmware.1
+              certMgrWebhookImage:
+                imagePath: cert-manager-webhook
+                tag: v0.16.1_vmware.1
+          k8s-sidecar:
+          - version: v0.1.144+vmware.2
+            images:
+              k8sSidecarImage:
+                imagePath: grafana/k8s-sidecar
+                tag: v0.1.144_vmware.2
+          k14s_kapp:
+          - version: v0.36.0+vmware.1
+          k14s_ytt:
+          - version: v0.31.0+vmware.1
+          kbld:
+          - version: v0.28.0+vmware.1
+          kube-state-metrics:
+          - version: v1.9.5+vmware.2
+            images:
+              kubeStateMetricsImage:
+                imagePath: prometheus/kube-state-metrics
+                tag: v1.9.5_vmware.2
+          kube-vip:
+          - version: v0.3.3+vmware.1
+            images:
+              kubeVipImage:
+                imagePath: kube-vip
+                tag: v0.3.3_vmware.1
+          kube_rbac_proxy:
+          - version: v0.4.1+vmware.2
+            images:
+              kubeRbacProxyControllerImage:
+                imagePath: kube-rbac-proxy
+                tag: v0.4.1_vmware.2
+              kubeRbacProxyControllerImageCapi:
+                imagePath: cluster-api/kube-rbac-proxy
+                tag: v0.4.1_vmware.2
+          kubernetes-sigs_kind:
+          - version: v1.20.5+vmware.1
+            images:
+              kindNodeImage:
+                imagePath: kind/node
+                tag: v1.20.5_vmware.1
+          kubernetes_autoscaler:
+          - version: v1.20.0+vmware.1
+            images:
+              kubernetesAutoscalerImage:
+                imagePath: cluster-autoscaler
+                tag: v1.20.0_vmware.1
+            metadata:
+              k8sversion: v1.20.4+vmware.1
+          - version: v1.19.1+vmware.1
+            images:
+              kubernetesAutoscalerImage:
+                imagePath: cluster-autoscaler
+                tag: v1.19.1_vmware.1
+            metadata:
+              k8sversion: v1.19.8+vmware.1
+          - version: v1.18.3+vmware.1
+            images:
+              kubernetesAutoscalerImage:
+                imagePath: cluster-autoscaler
+                tag: v1.18.3_vmware.1
+            metadata:
+              k8sversion: v1.18.16+vmware.1
+          - version: v1.17.4+vmware.1
+            images:
+              kubernetesAutoscalerImage:
+                imagePath: cluster-autoscaler
+                tag: v1.17.4_vmware.1
+            metadata:
+              k8sversion: v1.17.16+vmware.2
+          load-balancer-and-ingress-service:
+          - version: v1.3.2+vmware.1
+            images:
+              loadBalancerAndIngressServiceImage:
+                imagePath: ako
+                tag: v1.3.2_vmware.1
+          prometheus:
+          - version: v2.18.1+vmware.1
+            images:
+              prometheusImage:
+                imagePath: prometheus/prometheus
+                tag: v2.18.1_vmware.1
+          prometheus_node_exporter:
+          - version: v0.18.1+vmware.1
+            images:
+              prometheusNodeExporterImage:
+                imagePath: prometheus/prometheus_node_exporter
+                tag: v0.18.1_vmware.1
+          pushgateway:
+          - version: v1.2.0+vmware.2
+            images:
+              pushgatewayImage:
+                imagePath: prometheus/pushgateway
+                tag: v1.2.0_vmware.2
+          sonobuoy:
+          - version: v0.20.0+vmware.1
+            images:
+              sonobuoyImage:
+                imagePath: sonobuoy
+                tag: v0.20.0_vmware.1
+          tanzu_core:
+          - version: v1.3.1-patch1
+            images:
+              tkrImage:
+                imagePath: tanzu_core/tkr/tkr-controller-manager
+                tag: v1.3.1-patch1
+          tkg-bom:
+          - version: v1.3.1-patch1
+            images:
+              tkgBomImage:
+                imagePath: tkg-bom
+                tag: v1.3.1-patch1
+          tkg_extensions:
+          - version: v1.3.1+vmware.1
+            images:
+              tkgExtensionsTemplatesImage:
+                imagePath: tkg-extensions-templates
+                tag: v1.3.1_vmware.1
+          tkg_telemetry:
+          - version: v1.3.1+vmware.1
+            images:
+              tkgTelemetryImage:
+                imagePath: tkg-telemetry
+                tag: v1.3.1_vmware.1
+          velero:
+          - version: v1.5.4+vmware.1
+            images:
+              veleroImage:
+                imagePath: velero/velero
+                tag: v1.5.4_vmware.1
+              veleroResticRestoreHelperImage:
+                imagePath: velero/velero-restic-restore-helper
+                tag: v1.5.4_vmware.1
+          velero-plugin-for-aws:
+          - version: v1.1.0+vmware.1
+            images:
+              veleroPluginForAwsImage:
+                imagePath: velero/velero-plugin-for-aws
+                tag: v1.1.0_vmware.1
+          velero-plugin-for-microsoft-azure:
+          - version: v1.1.0+vmware.1
+            images:
+              veleroPluginForMicrosoftAzureImage:
+                imagePath: velero/velero-plugin-for-microsoft-azure
+                tag: v1.1.0_vmware.1
+          velero-plugin-for-vsphere:
+          - version: v1.1.0+vmware.1
+            images:
+              veleroBackupDriverImage:
+                imagePath: velero/backup-driver
+                tag: v1.1.0_vmware.1
+              veleroDataManagerForPluginImage:
+                imagePath: velero/data-manager-for-plugin
+                tag: v1.1.0_vmware.1
+              veleroPluginForVsphereImage:
+                imagePath: velero/velero-plugin-for-vsphere
+                tag: v1.1.0_vmware.1
+          vendir:
+          - version: v0.18.0+vmware.1
+        kindKubeadmConfigSpec:
+        - 'kind: Cluster'
+        - 'apiVersion: kind.x-k8s.io/v1alpha4'
+        - 'kubeadmConfigPatches:'
+        - '- |'
+        - '  apiVersion: kubeadm.k8s.io/v1beta2'
+        - '  kind: ClusterConfiguration'
+        - '  imageRepository: projects.registry.vmware.com/tkg'
+        - '  etcd:'
+        - '    local:'
+        - '      imageRepository: projects.registry.vmware.com/tkg'
+        - '      imageTag: v3.4.13_vmware.7'
+        - '  dns:'
+        - '    type: CoreDNS'
+        - '    imageRepository: projects.registry.vmware.com/tkg'
+        - '    imageTag: v1.7.0_vmware.8'
+        imageConfig:
+          imageRepository: projects.registry.vmware.com/tkg
+        extensions:
+          contour:
+            clusterTypes:
+            - workload
+            managedBy: user
+          dex:
+            clusterTypes:
+            - management
+            managedBy: user
+          fluent-bit:
+            clusterTypes:
+            - workload
+            managedBy: user
+          gangway:
+            clusterTypes:
+            - workload
+            managedBy: user
+          harbor:
+            clusterTypes:
+            - workload
+            managedBy: user
+          prometheus:
+            clusterTypes:
+            - workload
+            managedBy: user
+        tkr-bom:
+          imagePath: tkr-bom
+        tkr-compatibility:
+          imagePath: tkr-compatibility
+type: addons.cluster.x-k8s.io/resource-set
+---
+apiVersion: addons.cluster.x-k8s.io/v1alpha3
+kind: ClusterResourceSet
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: metadata/tkg
+  labels:
+    cluster.x-k8s.io/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01-tkg-metadata
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      tkg.tanzu.vmware.com/cluster-name: tkg-cluster-01
+  resources:
+  - kind: Secret
+    name: tkg-cluster-01-tkg-metadata-namespace-role
+  - kind: Secret
+    name: tkg-cluster-01-tkg-metadata-configmap
+  - kind: Secret
+    name: tkg-cluster-01-tkg-metadata-bom-configmap
+  strategy: ApplyOnce
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    tkg.tanzu.vmware.com/addon-type: metrics/metrics-server
+  labels:
+    clusterctl.cluster.x-k8s.io/move: ""
+    tkg.tanzu.vmware.com/addon-name: metrics-server
+    tkg.tanzu.vmware.com/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01-metrics-server-addon
+  namespace: default
+stringData:
+  values.yaml: |
+    #@data/values
+    #@overlay/match-child-defaults missing_ok=True
+    ---
+    metricsServer:
+      namespace: kube-system
+      config:
+        args: []
+        probe:
+          failureThreshold: 3
+          periodSeconds: 10
+        apiServiceInsecureTLS: true
+      image:
+        name: metrics-server
+        tag: v0.4.0_vmware.1
+        repository: registry.rainpole.io/library
+        pullPolicy: IfNotPresent
+type: tkg.tanzu.vmware.com/addon
+---
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: MachineHealthCheck
+metadata:
+  name: tkg-cluster-01
+  namespace: default
+spec:
+  clusterName: tkg-cluster-01
+  nodeStartupTimeout: 20m
+  selector:
+    matchLabels:
+      node-pool: tkg-cluster-01-worker-pool
+  unhealthyConditions:
+  - status: Unknown
+    timeout: 5m
+    type: Ready
+  - status: "False"
+    timeout: 12m
+    type: Ready
+---
+apiVersion: addons.cluster.x-k8s.io/v1alpha3
+kind: ClusterResourceSet
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: tkg-cluster-01
+  name: tkg-cluster-01-default-storage-class
+  namespace: default
+spec:
+  clusterSelector:
+    matchLabels:
+      tkg.tanzu.vmware.com/cluster-name: tkg-cluster-01
+  resources:
+  - kind: Secret
+    name: tkg-cluster-01-default-storage-class
+  strategy: ApplyOnce
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tkg-cluster-01-default-storage-class
+  namespace: default
+stringData:
+  value: |
+    kind: StorageClass
+    apiVersion: storage.k8s.io/v1
+    metadata:
+      name: default
+      annotations:
+        storageclass.kubernetes.io/is-default-class: "true"
+    provisioner: csi.vsphere.vmware.com
+    allowVolumeExpansion: true
+type: addons.cluster.x-k8s.io/resource-set

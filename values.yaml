@@ -1,0 +1,19 @@
+#@data/values
+---
+#! ytt variables
+vcenter: "vcsa.vmware.corp"
+tkgClusterName: "tkg-cluster-01"
+networkName: "VM Network"
+#! ytt data values
+#@ datacenterName = "Palo-Alto"
+#@ datastoreName = "vsanDatastore"
+#@ resourcePoolName = "Cluster-01"
+#@ folderName = "TKG"
+#@ templateName = "photon-3-kube-v1.20.5_vmware.2"
+
+#! #### Do Not Edit Beyond Here ####
+datacenter: #@ "/" + datacenterName
+datastore: #@ "/" + datacenterName + "/datastore/" + datastoreName
+folder: #@ "/" + datacenterName + "/vm/" + folderName
+resourcePool: #@ "/" + datacenterName + "/host/" + resourcePoolName
+template: #@ "/" + datacenterName + "/vm/" + folderName + "/" + templateName
